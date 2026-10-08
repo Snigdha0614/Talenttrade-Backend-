@@ -1,7 +1,7 @@
 import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import cors from 'cors';
 import dotenv from 'dotenv';
+
 import authRoutes from './server/routes/auth.routes.ts';
 import userRoutes from './server/routes/user.routes.ts';
 import serviceRoutes from './server/routes/service.routes.ts';
@@ -18,13 +18,17 @@ import adminRoutes from './server/routes/admin.routes.ts';
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 async function startServer() {
   const app = express();
-  const PORT = 3000;
-  const isProd = process.env.NODE_ENV === 'production';
+
+  const PORT = Number(process.env.PORT) || 3000;
+
+  app.use(
+    cors({
+      origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+      credentials: true,
+    })
+  );
 
   app.use(express.json({ limit: '20mb' }));
   app.use(express.urlencoded({ extended: true, limit: '20mb' }));
@@ -44,6 +48,7 @@ async function startServer() {
   app.use('/api/reports', reportRoutes);
   app.use('/api/admin', adminRoutes);
 
+  // Health check
   app.get('/api/health', (req, res) => {
     res.json({
       status: 'healthy',
@@ -53,24 +58,10 @@ async function startServer() {
     });
   });
 
-  // Vite middleware in dev or static files in prod
-  if (!isProd) {
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.resolve(__dirname, 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.resolve(distPath, 'index.html'));
-    });
-  }
-
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 TalentTrade server is running on http://0.0.0.0:${PORT}`);
+    console.log(
+      `🚀 TalentTrade API is running on port ${PORT}`
+    );
   });
 }
 
